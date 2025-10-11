@@ -1,107 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simple Forum</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Forum Login</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f1f1f1;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      max-width: 700px;
-      margin: 40px auto;
-      background: #fff;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    h1 {
-      text-align: center;
-    }
-    form {
-      display: flex;
-      flex-direction: column;
-    }
-    input, textarea {
-      margin: 8px 0;
-      padding: 10px;
-      font-size: 1em;
-    }
-    button {
-      padding: 10px;
-      background: #007bff;
-      border: none;
-      color: white;
-      font-weight: bold;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    #posts {
-      margin-top: 20px;
-    }
-    .post {
-      background: #fafafa;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      padding: 10px;
-      margin: 10px 0;
-    }
-    .post small {
-      color: #666;
-    }
+    :root { --accent: #007bff; --bg: #f1f1f1; --card: #fff; }
+    body { margin:0; background:var(--bg); font-family:sans-serif; display:flex; height:100vh; align-items:center; justify-content:center; }
+    .login-box, .forum, .admin-panel { background:var(--card); padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); width:350px; }
+    input,button { width:100%; padding:10px; margin:6px 0; border-radius:6px; border:1px solid #ccc; box-sizing:border-box; }
+    button { background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+    h1,h2,h3 { text-align:center; }
+    .hidden { display:none; }
+    .user-row, .admin-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #eee; }
+    label { display:flex; align-items:center; gap:4px; }
+    .panel { max-height:400px; overflow:auto; }
+    .add-remove { display:flex; gap:6px; margin-top:8px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🌍 Simple Forum</h1>
-    <form id="postForm">
-      <input type="text" id="author" placeholder="Your name" required />
-      <textarea id="content" placeholder="Write something..." required></textarea>
-      <button type="submit">Post</button>
-    </form>
-    <div id="posts"></div>
+  <div class="login-box" id="loginBox">
+    <h1>Forum Login</h1>
+    <input id="username" placeholder="Username" />
+    <input id="password" placeholder="Password" type="password" />
+    <button id="loginBtn">Login / Create Account</button>
+    <p id="loginMsg" style="color:red; text-align:center"></p>
+  </div>
+
+  <div class="forum hidden" id="forum">
+    <h2>Welcome, <span id="userDisplay"></span></h2>
+    <button id="logoutBtn">Logout</button>
+    <button id="adminPanelBtn" class="hidden">Admin Panel</button>
+    <p>Forum main content goes here.</p>
+  </div>
+
+  <div class="admin-panel hidden" id="adminPanel">
+    <h2>Admin Panel</h2>
+    <div class="panel">
+      <h3>Users</h3>
+      <div id="userList"></div>
+      <h3>Admins</h3>
+      <div id="adminList"></div>
+    </div>
+    <div class="add-remove">
+      <button id="addAdminBtn">Add Admin</button>
+      <button id="removeAdminBtn">Remove Admin</button>
+    </div>
+    <button id="closeAdminBtn" style="margin-top:10px;">Close</button>
   </div>
 
   <script>
-    const form = document.getElementById("postForm");
-    const postsDiv = document.getElementById("posts");
+    const loginBox = document.getElementById('loginBox');
+    const forum = document.getElementById('forum');
+    const adminPanel = document.getElementById('adminPanel');
+    const userDisplay = document.getElementById('userDisplay');
+    const adminPanelBtn = document.getElementById('adminPanelBtn');
+    const loginMsg = document.getElementById('loginMsg');
+    let currentUser = null;
 
-    async function loadPosts() {
-      const res = await fetch("/posts");
-      const posts = await res.json();
-      postsDiv.innerHTML = posts.map(p => `
-        <div class="post">
-          <p>${p.content}</p>
-          <small>by <b>${p.author}</b> on ${p.date}</small>
-        </div>
-      `).join("");
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if (!username || !password) {
+        loginMsg.textContent = 'Please fill all fields.';
+        return;
+      }
+      const res = await fetch('/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({username, password})
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        loginMsg.textContent = data.error || 'Login failed';
+        return;
+      }
+      if (data.banned) {
+        alert('You are banned from this forum');
+        return;
+      }
+      currentUser = data;
+      loginBox.classList.add('hidden');
+      forum.classList.remove('hidden');
+      userDisplay.textContent = data.username;
+      if (data.is_admin) adminPanelBtn.classList.remove('hidden');
+      else adminPanelBtn.classList.add('hidden');
     }
 
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const author = document.getElementById("author").value.trim();
-      const content = document.getElementById("content").value.trim();
-      if (!author || !content) return;
+    document.getElementById('loginBtn').onclick = login;
+    document.getElementById('logoutBtn').onclick = async () => {
+      await fetch('/logout', {method:'POST'});
+      currentUser = null;
+      forum.classList.add('hidden');
+      adminPanel.classList.add('hidden');
+      loginBox.classList.remove('hidden');
+    };
 
-      await fetch("/posts", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ author, content })
-      });
+    adminPanelBtn.onclick = async () => {
+      adminPanel.classList.remove('hidden');
+      const res = await fetch('/admin/data');
+      const data = await res.json();
+      const userList = document.getElementById('userList');
+      const adminList = document.getElementById('adminList');
+      userList.innerHTML = '';
+      adminList.innerHTML = '';
+      for (const u of data.users) {
+        const row = document.createElement('div');
+        row.className = 'user-row';
+        const ban = document.createElement('input');
+        ban.type = 'checkbox';
+        ban.checked = !!u.is_banned;
+        ban.disabled = u.is_admin;
+        ban.onchange = async () => {
+          const act = ban.checked ? 'ban' : 'unban';
+          await fetch('/admin/banToggle', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({user_id: u.id, action: act})
+          });
+          if (ban.checked) alert('User banned (if online, logged out)');
+        };
+        row.innerHTML = `${u.username} | ID: ${u.id} | (${u.is_online ? 'Online':'Offline'})`;
+        const label = document.createElement('label');
+        label.appendChild(ban);
+        label.appendChild(document.createTextNode('Banned'));
+        row.appendChild(label);
+        userList.appendChild(row);
+      }
+      for (const a of data.admins) {
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        row.innerHTML = `${a.username} | ID: ${a.id} | (${a.is_online ? 'Online':'Offline'})`;
+        adminList.appendChild(row);
+      }
+    };
 
-      form.reset();
-      loadPosts();
-    });
+    document.getElementById('addAdminBtn').onclick = async () => {
+      const name = prompt('Enter username or ID to add as admin:');
+      if (!name) return;
+      await fetch('/admin/addAdmin', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({target:name})});
+      alert('Admin added (if exists)');
+      adminPanelBtn.onclick();
+    };
+    document.getElementById('removeAdminBtn').onclick = async () => {
+      const name = prompt('Enter username or ID to remove from admin:');
+      if (!name) return;
+      await fetch('/admin/removeAdmin', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({target:name})});
+      alert('Admin removed (if exists)');
+      adminPanelBtn.onclick();
+    };
 
-    loadPosts();
-    setInterval(loadPosts, 3000);
+    document.getElementById('closeAdminBtn').onclick = () => adminPanel.classList.add('hidden');
   </script>
 </body>
 </html>
