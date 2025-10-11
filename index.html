@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Forum</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f1f1;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    input, textarea {
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 1em;
+    }
+    button {
+      padding: 10px;
+      background: #007bff;
+      border: none;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    #posts {
+      margin-top: 20px;
+    }
+    .post {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 10px;
+      margin: 10px 0;
+    }
+    .post small {
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌍 Simple Forum</h1>
+    <form id="postForm">
+      <input type="text" id="author" placeholder="Your name" required />
+      <textarea id="content" placeholder="Write something..." required></textarea>
+      <button type="submit">Post</button>
+    </form>
+    <div id="posts"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("postForm");
+    const postsDiv = document.getElementById("posts");
+
+    async function loadPosts() {
+      const res = await fetch("/posts");
+      const posts = await res.json();
+      postsDiv.innerHTML = posts.map(p => `
+        <div class="post">
+          <p>${p.content}</p>
+          <small>by <b>${p.author}</b> on ${p.date}</small>
+        </div>
+      `).join("");
+    }
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const author = document.getElementById("author").value.trim();
+      const content = document.getElementById("content").value.trim();
+      if (!author || !content) return;
+
+      await fetch("/posts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ author, content })
+      });
+
+      form.reset();
+      loadPosts();
+    });
+
+    loadPosts();
+    setInterval(loadPosts, 3000);
+  </script>
+</body>
+</html>
