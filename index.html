@@ -3,128 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multiplayer Cube Chat</title>
+<title>Simple Multiplayer Box Chat</title>
 <style>
-  body { margin: 0; overflow: hidden; background: white; font-family: sans-serif; }
-  canvas { display: block; }
+  body { margin: 0; overflow: hidden; background: white; }
+  canvas { background: white; display: block; }
   #chatBox {
-    position: fixed; top: 10px; left: 10px;
-    width: 300px; height: 200px;
-    overflow: hidden; display: flex;
-    flex-direction: column-reverse;
-    font-size: 14px;
-  }
-  .message {
-    background: rgba(0,0,0,0.1);
-    margin-top: 2px;
-    padding: 2px 5px;
-    border-radius: 3px;
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    width: 80%; max-width: 600px; display: flex;
   }
   #chatInput {
-    position: fixed;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 250px;
-    padding: 5px;
+    flex: 1; padding: 10px; border: 2px solid black; border-radius: 5px;
     font-size: 16px;
+  }
+  #chatLog {
+    position: fixed; top: 10px; left: 10px; max-width: 300px;
+    font-family: monospace; font-size: 14px;
+  }
+  .chatMessage {
+    background: rgba(0,0,0,0.7); color: white; padding: 3px 5px;
+    margin-top: 3px; border-radius: 3px;
+  }
+  #mobileControls {
+    position: fixed; bottom: 70px; right: 20px; display: none;
+  }
+  #mobileControls button {
+    width: 50px; height: 50px; margin: 3px; font-size: 18px;
+  }
+  @media (max-width: 800px) {
+    #mobileControls { display: block; }
   }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="chatBox"></div>
-<input id="chatInput" type="text" placeholder="Type message..." maxlength="100">
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<div id="chatLog"></div>
+<div id="chatBox">
+  <input type="text" id="chatInput" placeholder="Type message...">
+</div>
+<div id="mobileControls">
+  <div style="text-align:center;">
+    <button onclick="move('up')">↑</button>
+  </div>
+  <div>
+    <button onclick="move('left')">←</button>
+    <button onclick="move('down')">↓</button>
+    <button onclick="move('right')">→</button>
+  </div>
+</div>
 <script>
-const socket = io();
+let username = prompt("Enter your username:") || "Player" + Math.floor(Math.random()*1000);
+const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let playerId = null;
 let players = {};
-const speed = 5;
-const playerSize = 40;
-let keys = {};
+let messages = [];
 
+let me = {
+  x: Math.random()*400, y: Math.random()*400,
+  size: 40, color: "black"
+};
+
+const keys = {};
 document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
 document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-const chatBox = document.getElementById("chatBox");
-const chatInput = document.getElementById("chatInput");
-
-chatInput.addEventListener("keydown", e => {
-  if (e.key === "Enter" && chatInput.value.trim()) {
-    socket.emit("chat", chatInput.value.trim());
-    chatInput.value = "";
-  }
-});
-
-function addChatMessage(text) {
-  const msg = document.createElement("div");
-  msg.className = "message";
-  msg.textContent = text;
-  chatBox.prepend(msg);
-  setTimeout(() => msg.remove(), 10000);
+function move(dir) {
+  if (dir === "up") me.y -= 5;
+  if (dir === "down") me.y += 5;
+  if (dir === "left") me.x -= 5;
+  if (dir === "right") me.x += 5;
 }
 
-// Socket.IO events
-socket.on("connect", () => {
-  playerId = socket.id;
-});
-
-socket.on("init", (data) => {
-  players = data;
-});
-
-socket.on("newPlayer", ({ id, data }) => {
-  players[id] = data;
-});
-
-socket.on("update", ({ id, x, y }) => {
-  if (players[id]) {
-    players[id].x = x;
-    players[id].y = y;
-  }
-});
-
-socket.on("removePlayer", (id) => {
-  delete players[id];
-});
-
-socket.on("chat", ({ id, text }) => {
-  addChatMessage(`${id === playerId ? "You" : id}: ${text}`);
-});
-
 function update() {
-  let p = players[playerId];
-  if (!p) return;
-  if (keys["w"]) p.y -= speed;
-  if (keys["s"]) p.y += speed;
-  if (keys["a"]) p.x -= speed;
-  if (keys["d"]) p.x += speed;
-  socket.emit("move", { x: p.x, y: p.y });
+  if (keys['w']) me.y -= 5;
+  if (keys['s']) me.y += 5;
+  if (keys['a']) me.x -= 5;
+  if (keys['d']) me.x += 5;
+  ws.send(JSON.stringify({type: "move", username, x: me.x, y: me.y}));
 }
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let id in players) {
-    let p = players[id];
-    ctx.fillStyle = id === playerId ? "black" : "gray";
-    ctx.fillRect(p.x, p.y, playerSize, playerSize);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const camX = me.x - canvas.width/2 + me.size/2;
+  const camY = me.y - canvas.height/2 + me.size/2;
+
+  for (const id in players) {
+    const p = players[id];
+    const drawX = p.x - camX;
+    const drawY = p.y - camY;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(drawX, drawY, me.size, me.size);
+    if (p.texts) {
+      p.texts.forEach((msg, i) => {
+        ctx.fillStyle = "black";
+        ctx.font = "14px monospace";
+        ctx.fillText(msg.text, drawX, drawY - 10 - (i*16));
+      });
+    }
   }
+
+  ctx.fillStyle = me.color;
+  ctx.fillRect(canvas.width/2 - me.size/2, canvas.height/2 - me.size/2, me.size, me.size);
 }
 
-function gameLoop() {
+function loop() {
   update();
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
+loop();
 
-gameLoop();
+const chatInput = document.getElementById("chatInput");
+const chatLog = document.getElementById("chatLog");
+
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && chatInput.value.trim() !== "") {
+    const msg = chatInput.value.trim();
+    chatInput.value = "";
+    ws.send(JSON.stringify({type:"chat", username, text:msg}));
+  }
+});
+
+ws.onmessage = event => {
+  const data = JSON.parse(event.data);
+  if (data.type === "state") players = data.players;
+  else if (data.type === "chatlog") {
+    const div = document.createElement("div");
+    div.className = "chatMessage";
+    div.textContent = data.text;
+    chatLog.appendChild(div);
+    setTimeout(()=>div.remove(),10000);
+    while (chatLog.children.length > 10) chatLog.removeChild(chatLog.firstChild);
+  }
+};
 </script>
 </body>
 </html>
