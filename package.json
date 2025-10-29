@@ -1,13 +1,12 @@
 {
-  "name": "cube-chat-game",
+  "name": "simple-box-chat-game",
   "version": "1.0.0",
-  "description": "Simple multiplayer cube + chat game",
+  "description": "Simple multiplayer box chat game for Render",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "ws": "^8.18.0"
   }
 }
