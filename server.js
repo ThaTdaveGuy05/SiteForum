@@ -1,42 +1,51 @@
-// Simple multiplayer chat + movement server using Socket.IO
+// server.js — CommonJS version (works perfectly on Render)
 
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server);
 
-app.use(express.static("public")); // Serve your HTML from "public" folder
+const PORT = process.env.PORT || 3000;
+
+// serve files from public folder
+app.use(express.static(path.join(__dirname, "public")));
 
 let players = {};
 
+// handle connections
 io.on("connection", (socket) => {
-  console.log("New player:", socket.id);
-  players[socket.id] = { x: 100, y: 100, name: "Player" };
+  console.log(`Player connected: ${socket.id}`);
+  players[socket.id] = { x: 100, y: 100 };
 
+  // send current player list
   socket.emit("init", players);
-  socket.broadcast.emit("newPlayer", { id: socket.id, data: players[socket.id] });
+  socket.broadcast.emit("newPlayer", { id: socket.id, x: 100, y: 100 });
 
-  socket.on("move", (data) => {
+  // handle movement
+  socket.on("move", (pos) => {
     if (players[socket.id]) {
-      players[socket.id].x = data.x;
-      players[socket.id].y = data.y;
-      io.emit("update", { id: socket.id, x: data.x, y: data.y });
+      players[socket.id] = pos;
+      io.emit("updatePositions", players);
     }
   });
 
+  // handle chat
   socket.on("chat", (msg) => {
-    io.emit("chat", { id: socket.id, text: msg });
+    io.emit("chat", { id: socket.id, msg });
   });
 
+  // disconnect
   socket.on("disconnect", () => {
-    console.log("Player left:", socket.id);
+    console.log(`Player disconnected: ${socket.id}`);
     delete players[socket.id];
     io.emit("removePlayer", socket.id);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
