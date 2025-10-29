@@ -1,250 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Professional Forum</title>
-  <style>
-    :root {
-      --accent:#2b6cb0;--bg:#f5f6f8;--card:#fff;
-    }
-    body {margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:#222;}
-    header {background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;position:fixed;width:100%;top:0;left:0;z-index:10;}
-    header h1{font-size:1.2rem;margin:0;}
-    header nav button {background:none;border:none;color:#fff;font-weight:600;cursor:pointer;margin-left:12px;}
-    header nav button:hover{opacity:0.8;}
-    main {margin-top:60px;padding:20px;max-width:900px;margin-left:auto;margin-right:auto;}
-    .hidden{display:none;}
-    .card{background:var(--card);border-radius:8px;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,0.05);margin-bottom:16px;}
-    input,textarea,button{font-size:1rem;}
-    input,textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-top:6px;}
-    textarea{resize:vertical;min-height:80px;}
-    button.primary{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:600;}
-    .thread{border-bottom:1px solid #eee;padding-bottom:12px;margin-bottom:12px;}
-    .admin-tag{background:#e53e3e;color:#fff;font-size:0.8rem;padding:2px 6px;border-radius:4px;margin-left:4px;}
-    .search-bar{margin-bottom:12px;display:flex;gap:8px;}
-    .search-bar input{flex:1;}
-    .notif{background:#edf2f7;border-left:4px solid var(--accent);padding:8px;margin-bottom:8px;border-radius:4px;}
-    .ban{color:red;font-weight:bold;}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiplayer Cube Chat</title>
+<style>
+  body { margin: 0; overflow: hidden; background: white; font-family: sans-serif; }
+  canvas { display: block; }
+  #chatBox {
+    position: fixed; top: 10px; left: 10px;
+    width: 300px; height: 200px;
+    overflow: hidden; display: flex;
+    flex-direction: column-reverse;
+    font-size: 14px;
+  }
+  .message {
+    background: rgba(0,0,0,0.1);
+    margin-top: 2px;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }
+  #chatInput {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 250px;
+    padding: 5px;
+    font-size: 16px;
+  }
+</style>
 </head>
 <body>
-<header>
-  <h1>💬 School Forum</h1>
-  <nav>
-    <button id="homeBtn">Home</button>
-    <button id="profileBtn">Profile</button>
-    <button id="userSearchBtn">User Search</button>
-    <button id="forumSearchBtn">Forum Search</button>
-    <button id="adminBtn" class="hidden">Admin Panel</button>
-    <button id="logoutBtn">Logout</button>
-  </nav>
-</header>
+<canvas id="game"></canvas>
+<div id="chatBox"></div>
+<input id="chatInput" type="text" placeholder="Type message..." maxlength="100">
 
-<main id="content">
-  <div id="loginScreen" class="card">
-    <h2>Login / Create Account</h2>
-    <input id="username" placeholder="Username"/>
-    <input id="password" placeholder="Password" type="password"/>
-    <button class="primary" id="loginBtn">Login</button>
-    <p id="loginMsg" style="color:red"></p>
-  </div>
-
-  <div id="feed" class="hidden">
-    <div class="card">
-      <h2>Create Thread</h2>
-      <input id="threadTitle" placeholder="Thread title"/>
-      <textarea id="threadBody" placeholder="Thread body..."></textarea>
-      <button class="primary" id="createThreadBtn">Post Thread</button>
-    </div>
-    <div class="card">
-      <h2>Most Popular Threads</h2>
-      <div id="threadList"></div>
-    </div>
-  </div>
-
-  <div id="profile" class="hidden">
-    <div class="card">
-      <h2>Profile</h2>
-      <div id="profileInfo"></div>
-    </div>
-    <div class="card">
-      <h3>Your Threads</h3>
-      <div id="userThreads"></div>
-    </div>
-    <div class="card">
-      <h3>Notifications</h3>
-      <div id="notifications"></div>
-    </div>
-  </div>
-
-  <div id="userSearch" class="hidden">
-    <div class="card">
-      <h2>User Search</h2>
-      <div class="search-bar">
-        <input id="userSearchInput" placeholder="Username or ID"/>
-        <button class="primary" id="userSearchGo">Search</button>
-      </div>
-      <div id="userSearchResults"></div>
-    </div>
-  </div>
-
-  <div id="forumSearch" class="hidden">
-    <div class="card">
-      <h2>Forum Search</h2>
-      <div class="search-bar">
-        <input id="forumSearchInput" placeholder="Search thread titles or body"/>
-        <button class="primary" id="forumSearchGo">Search</button>
-      </div>
-      <div id="forumSearchResults"></div>
-    </div>
-  </div>
-
-  <div id="adminPanel" class="hidden">
-    <div class="card">
-      <h2>Admin Panel</h2>
-      <div class="search-bar">
-        <input id="adminSearch" placeholder="Filter users by name/id/status"/>
-      </div>
-      <h3>Users</h3>
-      <div id="userList"></div>
-      <h3>Admins</h3>
-      <div id="adminList"></div>
-      <button id="addAdminBtn" class="primary">Add Admin</button>
-      <button id="removeAdminBtn" class="primary">Remove Admin</button>
-    </div>
-  </div>
-</main>
-
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-let currentUser=null;
-const hideAll=()=>['feed','profile','userSearch','forumSearch','adminPanel','loginScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
-function show(id){hideAll();document.getElementById(id).classList.remove('hidden');}
-const api=(url,opts={})=>fetch(url,{headers:{'Content-Type':'application/json'},...opts}).then(r=>r.json());
+const socket = io();
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-async function login(){
-  const u=document.getElementById('username').value.trim();
-  const p=document.getElementById('password').value.trim();
-  const res=await api('/login',{method:'POST',body:JSON.stringify({username:u,password:p})});
-  if(res.error){document.getElementById('loginMsg').textContent=res.error;return;}
-  if(res.banned){alert('You are banned from this forum');return;}
-  currentUser=res;
-  document.getElementById('adminBtn').classList.toggle('hidden',!res.is_admin);
-  document.getElementById('loginMsg').textContent='';
-  show('feed');
-  loadThreads();
-}
-document.getElementById('loginBtn').onclick=login;
+let playerId = null;
+let players = {};
+const speed = 5;
+const playerSize = 40;
+let keys = {};
 
-document.getElementById('logoutBtn').onclick=async()=>{await api('/logout',{method:'POST'});currentUser=null;show('loginScreen');};
+document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-document.getElementById('homeBtn').onclick=()=>{show('feed');loadThreads();};
-document.getElementById('profileBtn').onclick=()=>{show('profile');loadProfile();};
-document.getElementById('userSearchBtn').onclick=()=>show('userSearch');
-document.getElementById('forumSearchBtn').onclick=()=>show('forumSearch');
-document.getElementById('adminBtn').onclick=()=>{show('adminPanel');loadAdminPanel();};
+const chatBox = document.getElementById("chatBox");
+const chatInput = document.getElementById("chatInput");
 
-// Create Thread
-document.getElementById('createThreadBtn').onclick=async()=>{
-  const title=document.getElementById('threadTitle').value.trim();
-  const body=document.getElementById('threadBody').value.trim();
-  if(!title||!body)return alert('Fill all fields');
-  await api('/threads',{method:'POST',body:JSON.stringify({author:currentUser.username,title,body})});
-  document.getElementById('threadTitle').value='';document.getElementById('threadBody').value='';
-  loadThreads();
-};
-
-async function loadThreads(){
-  const res=await api('/threads');
-  const list=document.getElementById('threadList');list.innerHTML='';
-  res.forEach(t=>{
-    const div=document.createElement('div');div.className='thread';
-    div.innerHTML=`<strong>${t.title}</strong><br>${t.body}<br><small>By ${t.author}</small><br>
-    Likes:${t.likes} Dislikes:${t.dislikes}<br>
-    <label><input type="checkbox" ${t.userLiked===1?'checked':''} data-id="${t.id}" data-val="1">Like</label>
-    <label><input type="checkbox" ${t.userLiked===-1?'checked':''} data-id="${t.id}" data-val="-1">Dislike</label>`;
-    list.appendChild(div);
-  });
-  list.querySelectorAll('input[type=checkbox]').forEach(c=>{
-    c.onchange=async()=>{
-      const id=c.dataset.id,val=parseInt(c.dataset.val);
-      await api('/like',{method:'POST',body:JSON.stringify({thread_id:id,username:currentUser.username,value:val})});
-      loadThreads();
-    };
-  });
-}
-
-async function loadProfile(){
-  const info=await api(`/users/${currentUser.username}/info`);
-  const threads=await api(`/users/${currentUser.username}/threads`);
-  const notifs=await api(`/users/${currentUser.username}/notifications`);
-  document.getElementById('profileInfo').innerHTML=`<p>Username:${info.username}<br>ID:${info.id}<br>Created:${info.created_at}</p>`;
-  const ut=document.getElementById('userThreads');ut.innerHTML='';
-  threads.forEach(t=>{ut.innerHTML+=`<div>${t.title} - ${t.date}</div>`});
-  const n=document.getElementById('notifications');n.innerHTML='';
-  notifs.forEach(m=>{n.innerHTML+=`<div class="notif">${m.message}</div>`});
-}
-
-document.getElementById('userSearchGo').onclick=async()=>{
-  const q=document.getElementById('userSearchInput').value.trim();
-  const res=await api(`/userSearch?q=${encodeURIComponent(q)}`);
-  const d=document.getElementById('userSearchResults');d.innerHTML='';
-  res.forEach(u=>d.innerHTML+=`${u.username} | ${u.id} | (${u.is_online?'Online':'Offline'})<br>`);
-};
-
-document.getElementById('forumSearchGo').onclick=async()=>{
-  const q=document.getElementById('forumSearchInput').value.trim();
-  const res=await api(`/forumSearch?q=${encodeURIComponent(q)}`);
-  const d=document.getElementById('forumSearchResults');d.innerHTML='';
-  res.forEach(t=>d.innerHTML+=`<div>${t.title} - ${t.author}</div>`);
-};
-
-// --- Admin Panel ---
-async function loadAdminPanel(){
-  const res=await api('/admin/data');
-  const userList=document.getElementById('userList');const adminList=document.getElementById('adminList');
-  userList.innerHTML='';adminList.innerHTML='';
-  res.users.forEach(u=>{
-    const row=document.createElement('div');
-    row.innerHTML=`${u.username} | ${u.id} | (${u.is_online?'Online':'Offline'}) 
-    <label><input type="checkbox" ${u.is_banned?'checked':''} ${u.is_admin?'disabled':''} data-id="${u.id}">Banned</label>`;
-    userList.appendChild(row);
-  });
-  res.admins.forEach(a=>{
-    const row=document.createElement('div');
-    row.textContent=`${a.username} | ${a.id} | (${a.is_online?'Online':'Offline'})`;
-    adminList.appendChild(row);
-  });
-  userList.querySelectorAll('input[type=checkbox]').forEach(c=>{
-    c.onchange=async()=>{
-      const act=c.checked?'ban':'unban';
-      await api('/admin/banToggle',{method:'POST',body:JSON.stringify({user_id:c.dataset.id,action:act})});
-      loadAdminPanel();
-    };
-  });
-  document.getElementById('adminSearch').oninput=()=>{
-    const f=document.getElementById('adminSearch').value.toLowerCase();
-    Array.from(userList.children).forEach(r=>r.style.display=r.textContent.toLowerCase().includes(f)?'block':'none');
-  };
-}
-document.getElementById('addAdminBtn').onclick=async()=>{
-  const name=prompt('Username/ID to add:');if(!name)return;
-  await api('/admin/addAdmin',{method:'POST',body:JSON.stringify({target:name})});
-  loadAdminPanel();
-};
-document.getElementById('removeAdminBtn').onclick=async()=>{
-  const name=prompt('Username/ID to remove:');if(!name)return;
-  await api('/admin/removeAdmin',{method:'POST',body:JSON.stringify({target:name})});
-  loadAdminPanel();
-};
-
-// Poll for ban/logout
-setInterval(async()=>{
-  if(currentUser){
-    const r=await api(`/users/${currentUser.username}/status`);
-    if(r.banned){alert('You are banned from this forum');currentUser=null;show('loginScreen');}
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && chatInput.value.trim()) {
+    socket.emit("chat", chatInput.value.trim());
+    chatInput.value = "";
   }
-},5000);
+});
+
+function addChatMessage(text) {
+  const msg = document.createElement("div");
+  msg.className = "message";
+  msg.textContent = text;
+  chatBox.prepend(msg);
+  setTimeout(() => msg.remove(), 10000);
+}
+
+// Socket.IO events
+socket.on("connect", () => {
+  playerId = socket.id;
+});
+
+socket.on("init", (data) => {
+  players = data;
+});
+
+socket.on("newPlayer", ({ id, data }) => {
+  players[id] = data;
+});
+
+socket.on("update", ({ id, x, y }) => {
+  if (players[id]) {
+    players[id].x = x;
+    players[id].y = y;
+  }
+});
+
+socket.on("removePlayer", (id) => {
+  delete players[id];
+});
+
+socket.on("chat", ({ id, text }) => {
+  addChatMessage(`${id === playerId ? "You" : id}: ${text}`);
+});
+
+function update() {
+  let p = players[playerId];
+  if (!p) return;
+  if (keys["w"]) p.y -= speed;
+  if (keys["s"]) p.y += speed;
+  if (keys["a"]) p.x -= speed;
+  if (keys["d"]) p.x += speed;
+  socket.emit("move", { x: p.x, y: p.y });
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let id in players) {
+    let p = players[id];
+    ctx.fillStyle = id === playerId ? "black" : "gray";
+    ctx.fillRect(p.x, p.y, playerSize, playerSize);
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
 </script>
 </body>
 </html>
